@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opsera-lionel-s-legacy-dev
+  labels:
+    app: lionel-s-legacy
+    tenant: opsera
+    managed-by: opsera-c2c

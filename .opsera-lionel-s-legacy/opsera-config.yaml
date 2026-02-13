@@ -1,0 +1,54 @@
+apiVersion: opsera.io/v1
+kind: OpseraConfig
+metadata:
+  name: lionel-s-legacy
+  tenant: opsera
+spec:
+  application:
+    name: lionel-s-legacy
+    tenant: opsera
+    type: spa
+    framework: vite-react
+    port: 8080
+
+  cloud:
+    provider: aws
+    region: us-west-2
+    regionShort: usw2
+
+  clusters:
+    hub: argocd-usw2
+    spoke: opsera-usw2-np
+    argocdServer: argocd-usw2.agent.opsera.dev
+    domain: agent.opsera.dev
+
+  ecr:
+    repository: opsera/lionel-s-legacy
+    tagMutability: IMMUTABLE
+    tagFormat: "{env}-{sha8}-{timestamp}"
+
+  environments:
+    - name: dev
+      namespace: opsera-lionel-s-legacy-dev
+      branch: main
+      strategy: rolling
+
+  security:
+    gitleaks:
+      enabled: true
+      mode: warn
+    grype:
+      enabled: true
+      mode: warn
+      severityThreshold: high
+
+  integrations:
+    sonarqube: skip
+    slack: skip
+    jira: skip
+    prometheus: skip
+    newrelic: skip
+    datadog: skip
+
+  setupMode: quick
+  version: "0.930"

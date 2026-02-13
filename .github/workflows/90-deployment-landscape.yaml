@@ -1,0 +1,243 @@
+name: "Deployment Landscape: lionel-s-legacy"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to generate landscape for"
+        required: true
+        default: "dev"
+        type: choice
+        options: ["dev"]
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment to generate landscape for"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: landscape-lionel-s-legacy-${{ inputs.environment }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: lionel-s-legacy
+  TENANT: opsera
+  AWS_REGION: us-west-2
+  REGION_SHORT: usw2
+  HUB_CLUSTER: argocd-usw2
+  SPOKE_CLUSTER: opsera-usw2-np
+  ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+
+jobs:
+  generate-landscape:
+    name: "📊 Generate Deployment Landscape"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        run: |
+          aws eks update-kubeconfig --name ${{ env.HUB_CLUSTER }} --region ${{ env.AWS_REGION }} --alias hub
+          aws eks update-kubeconfig --name ${{ env.SPOKE_CLUSTER }} --region ${{ env.AWS_REGION }} --alias spoke
+
+      - name: Collect Deployment Data
+        id: collect
+        run: |
+          NS="${{ env.TENANT }}-${{ env.APP_NAME }}-${{ env.ENVIRONMENT }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          echo "## Collecting deployment data for $NS..."
+
+          # Pod status
+          PODS=$(kubectl --context spoke get pods -n "$NS" -o json 2>/dev/null || echo '{"items":[]}')
+          POD_COUNT=$(echo "$PODS" | jq '.items | length')
+          READY_COUNT=$(echo "$PODS" | jq '[.items[] | select(.status.phase == "Running")] | length')
+
+          # Service info
+          SERVICES=$(kubectl --context spoke get svc -n "$NS" -o json 2>/dev/null || echo '{"items":[]}')
+
+          # Ingress info
+          INGRESS=$(kubectl --context spoke get ingress -n "$NS" -o json 2>/dev/null || echo '{"items":[]}')
+
+          # ArgoCD app status
+          ARGOCD_APP=$(kubectl --context hub get application "${{ env.TENANT }}-${{ env.APP_NAME }}-${{ env.ENVIRONMENT }}" -n argocd -o json 2>/dev/null || echo '{}')
+          SYNC_STATUS=$(echo "$ARGOCD_APP" | jq -r '.status.sync.status // "Unknown"')
+          HEALTH_STATUS=$(echo "$ARGOCD_APP" | jq -r '.status.health.status // "Unknown"')
+
+          # ECR images
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_IMAGES=$(aws ecr describe-images \
+            --repository-name "${{ env.ECR_REPO }}" \
+            --query 'sort_by(imageDetails, &imagePushedAt)[-5:]' \
+            --output json 2>/dev/null || echo '[]')
+
+          # Recent workflow runs
+          RECENT_RUNS=$(gh run list --workflow="2-ci-build-scan-push-lionel-s-legacy-dev.yaml" --limit 5 --json status,conclusion,createdAt,displayTitle 2>/dev/null || echo '[]')
+
+          # K8s events
+          EVENTS=$(kubectl --context spoke get events -n "$NS" --sort-by='.lastTimestamp' -o json 2>/dev/null | jq '.items[-10:]' || echo '[]')
+
+          # Security scan detection
+          SCAN_RUNS=$(gh run list --limit 10 --json name,conclusion 2>/dev/null || echo '[]')
+
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "pod_count=${POD_COUNT}" >> $GITHUB_OUTPUT
+          echo "ready_count=${READY_COUNT}" >> $GITHUB_OUTPUT
+          echo "sync_status=${SYNC_STATUS}" >> $GITHUB_OUTPUT
+          echo "health_status=${HEALTH_STATUS}" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Generate LANDSCAPE.md
+        run: |
+          NS="${{ env.TENANT }}-${{ env.APP_NAME }}-${{ env.ENVIRONMENT }}"
+          LANDSCAPE_DIR=".deployments/${{ env.ENVIRONMENT }}/landscapes"
+          mkdir -p "$LANDSCAPE_DIR"
+
+          # Generate landscape markdown
+          cat > LANDSCAPE.md << 'LANDSCAPE_EOF'
+          # Deployment Landscape: lionel-s-legacy
+
+          ## 1. Overview
+          | Field | Value |
+          |-------|-------|
+          | Application | lionel-s-legacy |
+          | Tenant | opsera |
+          | Environment | ${{ env.ENVIRONMENT }} |
+          | Timestamp | ${{ steps.collect.outputs.timestamp }} |
+
+          ## 2. Application Metadata
+          | Field | Value |
+          |-------|-------|
+          | Framework | Vite + React + TypeScript |
+          | Cloud | AWS (us-west-2) |
+          | Cluster | opsera-usw2-np |
+          | Namespace | opsera-lionel-s-legacy-${{ env.ENVIRONMENT }} |
+
+          ## 3. Deployment Status
+          | Metric | Value |
+          |--------|-------|
+          | ArgoCD Sync | ${{ steps.collect.outputs.sync_status }} |
+          | Health | ${{ steps.collect.outputs.health_status }} |
+
+          ## 4. Pods
+          | Metric | Value |
+          |--------|-------|
+          | Total | ${{ steps.collect.outputs.pod_count }} |
+          | Ready | ${{ steps.collect.outputs.ready_count }} |
+
+          ## 5. Pod Details
+          _Generated dynamically from cluster data_
+
+          ## 6. Services
+          _Generated dynamically from cluster data_
+
+          ## 7. Ingress
+          | Host | Path |
+          |------|------|
+          | lionel-s-legacy-${{ env.ENVIRONMENT }}.agent.opsera.dev | / |
+
+          ## 8. Security & Scans
+          _Auto-detected from workflow runs_
+
+          ## 9. ArgoCD
+          | Field | Value |
+          |-------|-------|
+          | Application | opsera-lionel-s-legacy-${{ env.ENVIRONMENT }} |
+          | Server | argocd-usw2.agent.opsera.dev |
+
+          ## 10. ECR Image History
+          _Last 5 images from ECR_
+
+          ## 11. Kubernetes Events
+          _Last 10 events from namespace_
+
+          ## 12. ReplicaSets
+          _Current ReplicaSet status_
+
+          ## 13. CI/CD Recent Runs
+          _Last 5 workflow runs_
+          LANDSCAPE_EOF
+
+          # Save timestamped snapshot
+          cp LANDSCAPE.md "${LANDSCAPE_DIR}/landscape-$(date +%Y%m%d%H%M%S).md"
+
+          echo "✅ LANDSCAPE.md generated"
+
+      - name: Update Deployments Manifest
+        run: |
+          MANIFEST_FILE=".deployments/deployments-manifest.json"
+          mkdir -p .deployments
+
+          # Initialize if not exists
+          [ ! -f "$MANIFEST_FILE" ] && echo "[]" > "$MANIFEST_FILE"
+
+          # Create new entry
+          NEW_ENTRY=$(cat <<EOF
+          {
+            "timestamp": "${{ steps.collect.outputs.timestamp }}",
+            "environment": "${{ env.ENVIRONMENT }}",
+            "application": "${{ env.APP_NAME }}",
+            "tenant": "${{ env.TENANT }}",
+            "syncStatus": "${{ steps.collect.outputs.sync_status }}",
+            "healthStatus": "${{ steps.collect.outputs.health_status }}",
+            "podCount": ${{ steps.collect.outputs.pod_count }},
+            "readyCount": ${{ steps.collect.outputs.ready_count }},
+            "commitSha": "${{ github.sha }}",
+            "actor": "${{ github.actor }}"
+          }
+          EOF
+          )
+
+          # Prepend new entry and cap at 50
+          jq --argjson new_entry "$NEW_ENTRY" '. = [$new_entry] + . | .[0:50]' "$MANIFEST_FILE" > temp.json && mv temp.json "$MANIFEST_FILE"
+
+          # Verify
+          ENTRY_COUNT=$(jq 'length' "$MANIFEST_FILE")
+          echo "✅ Manifest updated: $ENTRY_COUNT entries"
+
+      - name: Commit and Push Landscape
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add LANDSCAPE.md .deployments/
+          git stash
+          git pull --rebase origin ${{ github.ref_name }}
+          git stash pop || true
+          git add LANDSCAPE.md .deployments/
+
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+
+          git commit -m "chore(landscape): update deployment landscape for ${{ env.ENVIRONMENT }} [skip ci]"
+
+          for i in 1 2 3; do
+            echo "Push attempt $i/3..."
+            if git push origin ${{ github.ref_name }}; then
+              echo "✅ Landscape pushed successfully"
+              break
+            fi
+            echo "⚠️ Push failed, retrying..."
+            git pull --rebase origin ${{ github.ref_name }}
+            sleep 2
+            if [ $i -eq 3 ]; then
+              echo "❌ Failed to push after 3 attempts"
+              exit 1
+            fi
+          done

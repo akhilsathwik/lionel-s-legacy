@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lionel-s-legacy
+  labels:
+    app: lionel-s-legacy
+    tenant: opsera
+    managed-by: opsera-c2c
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: lionel-s-legacy-dev.agent.opsera.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lionel-s-legacy
+                port:
+                  number: 80

@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lionel-s-legacy
+  labels:
+    app: lionel-s-legacy
+    tenant: opsera
+    managed-by: opsera-c2c
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: lionel-s-legacy
+  template:
+    metadata:
+      labels:
+        app: lionel-s-legacy
+        tenant: opsera
+    spec:
+      serviceAccountName: lionel-s-legacy-sa
+      imagePullSecrets:
+        - name: ecr-pull-secret
+      containers:
+        - name: lionel-s-legacy
+          image: all-is-well
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false

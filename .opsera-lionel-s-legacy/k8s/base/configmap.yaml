@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lionel-s-legacy-config
+  labels:
+    app: lionel-s-legacy
+    tenant: opsera
+    managed-by: opsera-c2c
+data:
+  APP_NAME: lionel-s-legacy
+  ENVIRONMENT: dev
+  PORT: "8080"
