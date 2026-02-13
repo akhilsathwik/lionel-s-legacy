@@ -1,0 +1,61 @@
+# Deployment Landscape: lionel-s-legacy
+
+## 1. Overview
+| Field | Value |
+|-------|-------|
+| Application | lionel-s-legacy |
+| Tenant | opsera |
+| Environment | dev |
+| Timestamp | 2026-02-13T16:39:57Z |
+
+## 2. Application Metadata
+| Field | Value |
+|-------|-------|
+| Framework | Vite + React + TypeScript |
+| Cloud | AWS (us-west-2) |
+| Cluster | opsera-usw2-np |
+| Namespace | opsera-lionel-s-legacy-dev |
+
+## 3. Deployment Status
+| Metric | Value |
+|--------|-------|
+| ArgoCD Sync | Synced |
+| Health | Healthy |
+
+## 4. Pods
+| Metric | Value |
+|--------|-------|
+| Total | 2 |
+| Ready | 2 |
+
+## 5. Pod Details
+_Generated dynamically from cluster data_
+
+## 6. Services
+_Generated dynamically from cluster data_
+
+## 7. Ingress
+| Host | Path |
+|------|------|
+| lionel-s-legacy-dev.agent.opsera.dev | / |
+
+## 8. Security & Scans
+_Auto-detected from workflow runs_
+
+## 9. ArgoCD
+| Field | Value |
+|-------|-------|
+| Application | opsera-lionel-s-legacy-dev |
+| Server | argocd-usw2.agent.opsera.dev |
+
+## 10. ECR Image History
+_Last 5 images from ECR_
+
+## 11. Kubernetes Events
+_Last 10 events from namespace_
+
+## 12. ReplicaSets
+_Current ReplicaSet status_
+
+## 13. CI/CD Recent Runs
+_Last 5 workflow runs_
