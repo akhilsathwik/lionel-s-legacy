@@ -11,5 +11,5 @@ labels:
       tenant: opsera
 images:
   - name: all-is-well
-    newName: PLACEHOLDER
-    newTag: latest
+    newName: 792373136340.dkr.ecr.us-west-2.amazonaws.com/opsera/lionel-s-legacy
+    newTag: dev-6d4a8d19-20260213163608
