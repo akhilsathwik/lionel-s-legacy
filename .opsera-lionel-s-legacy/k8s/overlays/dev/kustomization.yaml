@@ -12,4 +12,4 @@ labels:
 images:
   - name: all-is-well
     newName: 792373136340.dkr.ecr.us-west-2.amazonaws.com/opsera/lionel-s-legacy
-    newTag: dev-26c78239-20260215045337
+    newTag: dev-ce68b619-20260215050447
