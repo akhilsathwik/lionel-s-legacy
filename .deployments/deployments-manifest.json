@@ -1,5 +1,17 @@
 [
   {
+    "timestamp": "2026-02-15T04:56:39Z",
+    "environment": "dev",
+    "application": "lionel-s-legacy",
+    "tenant": "opsera",
+    "syncStatus": "Synced",
+    "healthStatus": "Healthy",
+    "podCount": 2,
+    "readyCount": 2,
+    "commitSha": "0bb4b0b61eaa24cf42baa722fef1c1f115c48548",
+    "actor": "akhilsathwik"
+  },
+  {
     "timestamp": "2026-02-13T16:39:57Z",
     "environment": "dev",
     "application": "lionel-s-legacy",
